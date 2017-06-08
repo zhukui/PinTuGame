@@ -6,6 +6,9 @@ import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.GridLayout;
 import android.widget.ImageView;
@@ -19,6 +22,7 @@ public class MainActivity extends AppCompatActivity {
     private int columnCount = 3;//列数
     private ImageView[][] imageViews = new ImageView[rowCount][columnCount];
     private ImageView blankImageview;//空白块
+    private GestureDetector gestureDetector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,6 +30,69 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         gl = (GridLayout) findViewById(R.id.gl);
         initImageViews();
+        initGestureDetector();
+    }
+
+    private void initGestureDetector() {
+        gestureDetector = new GestureDetector(this, new GestureDetector.OnGestureListener() {
+            @Override
+            public boolean onDown(MotionEvent e) {
+                return false;
+            }
+
+            @Override
+            public void onShowPress(MotionEvent e) {
+
+            }
+
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                return false;
+            }
+
+            @Override
+            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+                return false;
+            }
+
+            @Override
+            public void onLongPress(MotionEvent e) {
+
+            }
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                Log.e("info", "onFling");
+                int type = 0;
+                float srcX = e1.getX();
+                float srcY = e1.getY();
+                float dstX = e2.getX();
+                float dstY = e2.getY();
+                float velocity = Math.abs(srcX - dstX) - Math.abs(srcY - dstY);
+                //左右移动
+                if (velocity > 0) {
+                    float dx = e1.getX() - e2.getX();
+                    if (dx > 0) {
+                        Log.e("info", "向左移动");
+                        type = 1;
+                    } else {
+                        Log.e("info", "向右移动");
+                        type = 2;
+                    }
+                } else {
+                    float dy = e1.getY() - e2.getY();
+                    if (dy > 0) {
+                        Log.e("info", "向上移动");
+                        type = 4;
+                    } else {
+                        type = 3;
+                        Log.e("info", "向下移动");
+                    }
+                }
+                transitionType(type);
+                return false;
+            }
+        });
     }
 
     /**
@@ -55,13 +122,16 @@ public class MainActivity extends AppCompatActivity {
                         GameData gameData = (GameData) srcImageView.getTag();
                         GameData blankGameData = (GameData) blankImageview.getTag();
                         boolean nearBlank = gameData.nearBlank(blankGameData);
-//                        Toast.makeText(MainActivity.this, "--nearBlank---" + nearBlank, Toast.LENGTH_SHORT).show();
                         if (nearBlank) {
                             changePosition(srcImageView);
                         }
-                        if (isGameOver()) {
-                            Toast.makeText(MainActivity.this, "恭喜你完成拼图", Toast.LENGTH_SHORT).show();
-                        }
+                    }
+                });
+                imageView.setOnTouchListener(new View.OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+
+                        return gestureDetector.onTouchEvent(event);
                     }
                 });
             }
@@ -116,6 +186,9 @@ public class MainActivity extends AppCompatActivity {
         blankImageview.setImageBitmap(bitmap);
         srcImageView.setImageBitmap(null);
         blankImageview = srcImageView;
+        if (isGameOver()) {
+            Toast.makeText(MainActivity.this, "恭喜你完成拼图", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -151,4 +224,32 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    /**
+     * 移动的类型
+     *
+     * @param type 类型 1：向左，2 ：向右，3：向下，4：向上
+     */
+    private void transitionType(int type) {
+        GameData data = (GameData) blankImageview.getTag();
+        int x = data.getX();
+        int y = data.getY();
+        if (type == 1) {//如果是向左滑动，空白快右边的块移动，其他以此类推
+            y += 1;
+        } else if (type == 2) {
+            y -= 1;
+        } else if (type == 3) {
+            x -= 1;
+        } else if (type == 4) {
+            x += 1;
+        }
+        //这几种情况都是不符合移动要求的
+        if (x < 0 || x >= columnCount || y < 0 || y >= rowCount) {
+            return;
+        }
+        ImageView imageView = imageViews[x][y];
+        changePosition(imageView);
+    }
+
+
 }
